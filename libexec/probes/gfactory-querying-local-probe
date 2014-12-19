@@ -1,0 +1,128 @@
+#!/usr/bin/python
+
+import os
+import re
+import subprocess
+import sys
+import urllib2
+import rsvprobe
+import htcondor
+
+# The maximun number of meshes allowed
+#max_mesh = 100
+
+sys.path.insert(0, '.')
+
+
+class GfactoryQueryingLocalProbe(rsvprobe.RSVProbe):
+    """
+    This master probe reads a json and parses it to obtain the urls
+    of several perfsonar nodes then fires up other dummy probes that contact
+    the perfsonar nodes and upload the information to myosg
+    """
+
+    def __init__(self):
+        rsvprobe.RSVProbe.__init__(self)
+        self.metric = ""
+        self.short_metric = ""
+        metric = rsvprobe.RSVMetric("Perfsonar-Monitor",
+                 "org.osg.local-gfactory-querying-local", rsvprobe.RSVMetric.STATUS)
+        self.supported_metrics = [metric]
+        self.details = "---\n"
+
+    def parseopt(self):
+        """parse options specific to network monitroing probe and return options, optlist and reminder to allow further processing
+        """
+        options, optlist, remainder = rsvprobe.RSVProbe.parseopt(self)
+        for opt, arg in options:
+            # Adding the extra meshes
+            if 'mesh' in  opt and ('super' not in opt):
+                if arg not in self.meshlist:
+                    self.meshlist.append(arg)
+            if 'super' in opt:
+                self.super_mesh = arg
+            if self.host == self.localhost:
+                self.is_local = True
+            else:
+                self.is_local = False
+        return options, optlist, remainder
+
+    # Enables a dummy probe for each node in nodes
+    def enableDummyProbe(self, nodes, metric):
+        for node in nodes:
+            cmd = "rsv-control --enable --host %s %s" % (node, metric)
+            ec, out = rsvprobe.run_command(cmd)
+            # make a warning if the dummy metric failed
+            result = out.split("\n")
+            if 'ERROR' in result:
+                self.add_warning("Failed to enable probe failed for node: %s" % (node), exit_code=0)
+            cmd = "rsv-control --on --host %s %s" % (node, metric)
+            ec, out = rsvprobe.run_command(cmd)
+            result = out.split("\n")
+            if 'ERROR' in result:
+                self.add_warning("Failed to turn on probe failed for node: %s, metric %s" % (node, metric), exit_code=0)
+    
+    # Disable the dummy probe for a list of nodes
+    def disableDummyProbe(self, nodes, metric):
+        for node in nodes:
+            cmd = "rsv-control --disable --host %s %s" % (node, metric)
+            ec, out = rsvprobe.run_command(cmd)
+            # make a warning if the dummy metric failed                                                                                                       
+            result = out.split("\n")
+            if 'ERROR' in result:
+                self.add_warning("Failed to enable probe failed for node: %s" % (node), exit_code=0)
+            cmd = "rsv-control --off --host %s %s" % (node, metric)
+            ec, out = rsvprobe.run_command(cmd)
+            result = out.split("\n")
+            if 'ERROR' in result:
+                self.add_warning("Failed to turn off probe failed for node: %s" % (node), exit_code=0)
+        
+
+    #Returns a list of nodes that are currently enabled for a given metric
+    def getListEnablednodes(self, metric):
+        cmd = "rsv-control --list --wide %s | grep host | awk '{print $5}'" % (metric)
+        ec, out = rsvprobe.run_command(cmd)
+        result = out.split("\n")
+        return result
+
+    def getListNodesToDisable(self, actualNodes, enabledNodes):
+        nodesToDisable = []
+        for node in enabledNodes:
+            if node not in actualNodes and len(node)>0:
+                nodesToDisable.append(node)
+        return nodesToDisable
+    
+    def getListNodesToEnable(self, actualNodes, enabledNodes):
+        nodesToEnable = []
+        for node in actualNodes:
+                if node not in enabledNodes:
+                    nodesToEnable.append(node)
+        return nodesToEnable
+
+    def run(self):
+        """Main routine for the probe"""
+        self.parseopt()
+        if len(self.super_mesh)>0:
+            self.parseSuperMesh(self.super_mesh)
+        #Actual nodes are the nodes that should be on according to the last reading of the mesh_rul
+        actualNodes = []
+        for mesh_url in self.meshlist:
+            actualNodes += self.parseJsonUrl(mesh_url)
+        #Enabled nodes is the list of currently enabled nodes
+        self.add_message("Getting list of enabled nodes")
+        enabledNodes = self.getListEnablednodes('org.osg.general.perfsonar-simple')
+        self.add_message("Calculating list of enabled and disabled nodes")
+        nodesToEnable = self.getListNodesToEnable(actualNodes, enabledNodes)
+        nodesToDisable = self.getListNodesToDisable(actualNodes, enabledNodes)
+        self .add_message("Enabling nodes %s " % nodesToEnable)
+        self.enableDummyProbe(nodesToEnable)
+        self.add_message("Disabling nodes %s " % nodesToDisable)
+        self.disableDummyProbe(nodesToDisable)
+        self.return_ok("Everything OK")
+
+def main():
+    probe = GfactoryQueryingLocalProbe()
+    return probe.run()
+
+if __name__ == '__main__':
+    sys.exit(main())
