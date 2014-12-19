@@ -1,0 +1,6 @@
+Usage
+1. Install the rsv-vo-gwms RPM
+2. Enable the gfactory vo query
+rsv-control --enable org.osg.local.network-monitoring-local --host myhost
+
+Where myhost is the host where rsv-vo-gwms is installed
