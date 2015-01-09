@@ -7,40 +7,46 @@ import sys
 import urllib2
 import rsvprobe
 import htcondor
-
-# The maximun number of meshes allowed
-#max_mesh = 100
+import classad
+import re
+import ConfigParser
 
 sys.path.insert(0, '.')
 
 
 class GfactoryQueryingLocalProbe(rsvprobe.RSVProbe):
     """
-    This master probe reads a json and parses it to obtain the urls
-    of several perfsonar nodes then fires up other dummy probes that contact
-    the perfsonar nodes and upload the information to myosg
+    This master probe querys condor collector at a gfactory and parses it to obtain the urls
+    of several CE nodes that accept jobs from the wanted VO
     """
 
     def __init__(self):
         rsvprobe.RSVProbe.__init__(self)
         self.metric = ""
         self.short_metric = ""
-        metric = rsvprobe.RSVMetric("Perfsonar-Monitor",
+        metric = rsvprobe.RSVMetric("Gfactory-querying",
                  "org.osg.local-gfactory-querying-local", rsvprobe.RSVMetric.STATUS)
         self.supported_metrics = [metric]
         self.details = "---\n"
+        self.gfactory = "glidein-itb.grid.iu.edu"
+        self.constraint = """stringListMember("CMS",GLIDEIN_Supported_VOs)"""
+        self.dummyMetric = "org.osg.general.osg-version"
+        self.addopt("", "gfactory=", "--gfactory the host name of the gfactory i.e glidein-itb.grid.iu.edu")
+        self.addopt("", "dmetric=", "--dmetric the metric to be executed at the hosts from the gfactory i,e org.osg.general.osg-version")
+        self.addopt("", "constraint=", """--constraint the constraint to query the gfactory collector i.e stringListMember("CMS",GLIDEIN_Supported_VOs)""")
 
     def parseopt(self):
-        """parse options specific to network monitroing probe and return options, optlist and reminder to allow further processing
+        """parse options specific to the gfactory probe
         """
         options, optlist, remainder = rsvprobe.RSVProbe.parseopt(self)
         for opt, arg in options:
             # Adding the extra meshes
-            if 'mesh' in  opt and ('super' not in opt):
-                if arg not in self.meshlist:
-                    self.meshlist.append(arg)
-            if 'super' in opt:
-                self.super_mesh = arg
+            if 'gfactory' in opt:
+                self.gfactory = arg
+            elif 'dmetric' in opt:
+                self.dummyMetric = arg
+            elif 'constraint' in opt:
+                self.constraint = arg
             if self.host == self.localhost:
                 self.is_local = True
             else:
@@ -83,6 +89,8 @@ class GfactoryQueryingLocalProbe(rsvprobe.RSVProbe):
         cmd = "rsv-control --list --wide %s | grep host | awk '{print $5}'" % (metric)
         ec, out = rsvprobe.run_command(cmd)
         result = out.split("\n")
+        if 'not' in result:
+            result.remove('not')
         return result
 
     def getListNodesToDisable(self, actualNodes, enabledNodes):
@@ -99,25 +107,78 @@ class GfactoryQueryingLocalProbe(rsvprobe.RSVProbe):
                     nodesToEnable.append(node)
         return nodesToEnable
 
+    def getListNodesFactory(self, newconstraint):
+        # A dictionary with all the gatekeepers
+        gateKeepers = {}
+        actualNodes = []
+        # querying the gfactory
+        coll = htcondor.Collector(self.gfactory)
+        constraint = 'MyType=?="glidefactory" && ' + newconstraint
+        self.add_message("constraint for factory querying: %s" % constraint)
+        results = coll.query(htcondor.AdTypes.Any, constraint, ['GLIDEIN_Site', 'GLIDEIN_ResourceName', 'GLIDEIN_Gatekeeper', 'GLIDEIN_GridType'])
+        # Parsing the results into a dictionary with the CE's info
+        condorceprog = re.compile("(.*) (.*)")
+        creamceprog = re.compile("(.*):([0-9]*)/(.*)")
+        for result in results:
+            gatekeeper = {}
+            gatekeeper["grid_type"] = result["GLIDEIN_GridType"]
+            gatekeeper["grid_resource"] = result["GLIDEIN_Gatekeeper"]         
+            if result["GLIDEIN_GridType"] in ['gt2', 'gt5']:
+                gatekeeper["grid_type"] = 'gram'
+            elif 'condor' in result["GLIDEIN_GridType"]:
+                gatekeeper["grid_type"] = 'htcondor-ce'
+                m = condorceprog.match(gatekeeper["grid_resource"])
+                gatekeeper["host"] = m.group(1)
+                gatekeeper["htcondor-ce-collector"] = m.group(2)
+            elif 'cream' in result["GLIDEIN_GridType"]:
+                gatekeeper["grid_type"] = 'cream'
+            elif 'nordugrid' in result["GLIDEIN_GridType"]:
+                gatekeeper["grid_type"] = 'nordugrid'
+                gatekeeper["host"] = result["GLIDEIN_Gatekeeper"]
+            #nordugrid resource name has no jobmanager or port
+            if gatekeeper['grid_type'] in ['cream', 'gram']:
+                m = creamceprog.match(gatekeeper["grid_resource"])
+                gatekeeper["host"] = m.group(1)
+                gatekeeper["port"] = m.group(2)
+                gatekeeper["jobmanager"] = m.group(3)
+            gateKeepers[gatekeeper["host"]]=gatekeeper
+        return gateKeepers
+
+    def updateProbeConfigurations(self, metric):
+        for host in self.gateKeepers:
+            dirpath = '/etc/rsv/metrics/' + host
+            configFile = dirpath + '/' + metric + '.conf'
+            # Check that the conf directort for each host exists
+            if not os.path.isdir(dirpath):
+                os.mkdir(dirpath)
+            cfgfile = open(configFile, 'w')
+            Config = ConfigParser.ConfigParser()
+            Config.add_section(metric)
+            Config.set(metric, 'ce-type', self.gateKeepers[host]['grid_type'])
+            if self.gateKeepers[host]['grid_type'] in ['cream', 'gt5', 'gt2']:
+                 Config.set(metric, 'jobmanager', self.gateKeepers[host]['jobmanager'])
+            if self.gateKeepers[host]['grid_type'] in ['htcondor-ce']:
+                Config.set(metric, 'htcondor-ce-collector', self.gateKeepers[host]['htcondor-ce-collector'])
+            Config.write(cfgfile)
+            cfgfile.close()
+            
     def run(self):
         """Main routine for the probe"""
         self.parseopt()
-        if len(self.super_mesh)>0:
-            self.parseSuperMesh(self.super_mesh)
-        #Actual nodes are the nodes that should be on according to the last reading of the mesh_rul
         actualNodes = []
-        for mesh_url in self.meshlist:
-            actualNodes += self.parseJsonUrl(mesh_url)
+        self.gateKeepers = self.getListNodesFactory(self.constraint)
+        actualNodes = self.gateKeepers.keys()
         #Enabled nodes is the list of currently enabled nodes
         self.add_message("Getting list of enabled nodes")
-        enabledNodes = self.getListEnablednodes('org.osg.general.perfsonar-simple')
+        enabledNodes = self.getListEnablednodes(self.dummyMetric)
         self.add_message("Calculating list of enabled and disabled nodes")
         nodesToEnable = self.getListNodesToEnable(actualNodes, enabledNodes)
         nodesToDisable = self.getListNodesToDisable(actualNodes, enabledNodes)
         self .add_message("Enabling nodes %s " % nodesToEnable)
-        self.enableDummyProbe(nodesToEnable)
+        self.enableDummyProbe(nodesToEnable, self.dummyMetric)
         self.add_message("Disabling nodes %s " % nodesToDisable)
-        self.disableDummyProbe(nodesToDisable)
+        self.disableDummyProbe(nodesToDisable, self.dummyMetric)
+        self.updateProbeConfigurations(self.dummyMetric)
         self.return_ok("Everything OK")
 
 def main():
