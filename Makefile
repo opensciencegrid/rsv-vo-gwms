@@ -26,7 +26,7 @@ install:
 	install -d $(DESTDIR)/$(localstatedir)/log/rsv/probes
 	# Put log rotation in place
 	install -d $(DESTDIR)/$(sysconfdir)/logrotate.d
-	install -m 0644 logrotate/rsv-perfsonar-metrics.logrotate $(DESTDIR)/$(sysconfdir)/logrotate.d/rsv-vo-gwms-metrics
+	install -m 0644 logrotate/rsv-vo-gwms.logrotate $(DESTDIR)/$(sysconfdir)/logrotate.d/rsv-vo-gwms-metrics
 
 
 
