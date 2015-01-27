@@ -120,9 +120,10 @@ class GfactoryQueryingLocalProbe(rsvprobe.RSVProbe):
         condorceprog = re.compile("(.*) (.*)")
         creamceprog = re.compile("(.*):([0-9]*)/(.*)")
         for result in results:
+            # Create new gatekeeper entry
             gatekeeper = {}
             gatekeeper["grid_type"] = result["GLIDEIN_GridType"]
-            gatekeeper["grid_resource"] = result["GLIDEIN_Gatekeeper"]         
+            gatekeeper["grid_resource"] = result["GLIDEIN_Gatekeeper"]
             if result["GLIDEIN_GridType"] in ['gt2', 'gt5']:
                 gatekeeper["grid_type"] = 'gram'
             elif 'condor' in result["GLIDEIN_GridType"]:
@@ -141,7 +142,9 @@ class GfactoryQueryingLocalProbe(rsvprobe.RSVProbe):
                 gatekeeper["host"] = m.group(1)
                 gatekeeper["port"] = m.group(2)
                 gatekeeper["jobmanager"] = m.group(3)
-            gateKeepers[gatekeeper["host"]]=gatekeeper
+            # Check if a previous existed so it use the most up to date
+            if not gatekeeper["host"] in gateKeepers:
+                gateKeepers[gatekeeper["host"]]=gatekeeper
         return gateKeepers
 
     def updateProbeConfigurations(self, metric):
