@@ -29,8 +29,8 @@ class GfactoryQueryingLocalProbe(rsvprobe.RSVProbe):
         self.supported_metrics = [metric]
         self.details = "---\n"
         self.gfactory = "glidein-itb.grid.iu.edu"
-        self.constraint = """(GLIDEIN_GridType=?="condor" || GLIDEIN_GridType=?="gt5" || GLIDEIN_GridType=?="gt2") && stringListMember("CMS",GLIDEIN_Supported_VOs)"""
-        self.dummyMetric = "org.osg.general.osg-version"
+        self.constraint = """(GLIDEIN_GridType=?="condor" || GLIDEIN_GridType=?="gt5" || GLIDEIN_GridType=?="gt2" || GLIDEIN_GridType=?="cream" || GLIDEIN_GridType=?="nordugrid") && stringListMember("CMS",GLIDEIN_Supported_VOs)"""
+        self.dummyMetric = "org.osg.general.dummy-probe"
         self.addopt("", "gfactory=", "--gfactory the host name of the gfactory i.e glidein-itb.grid.iu.edu")
         self.addopt("", "dmetric=", "--dmetric the metric to be executed at the hosts from the gfactory i,e org.osg.general.osg-version")
         self.addopt("", "constraint=", """--constraint the constraint to query the gfactory collector i.e stringListMember("CMS",GLIDEIN_Supported_VOs)""")

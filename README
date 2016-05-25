@@ -8,3 +8,7 @@ And update proxy-file entry to your VO proxy.
 
 
 Where myhost is the host where rsv-vo-gwms is installed
+
+More specific instructions are here:
+
+https://twiki.grid.iu.edu/bin/view/Sandbox/InstallRSV-vo-gwms
