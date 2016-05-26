@@ -24,10 +24,6 @@ install:
 	# Create the log dirs
 	install -d $(DESTDIR)/$(localstatedir)/log/rsv/metrics
 	install -d $(DESTDIR)/$(localstatedir)/log/rsv/probes
-	# Put log rotation in place
-	install -d $(DESTDIR)/$(sysconfdir)/logrotate.d
-	install -m 0644 logrotate/rsv-vo-gwms.logrotate $(DESTDIR)/$(sysconfdir)/logrotate.d/rsv-vo-gwms-metrics
-
 
 
 .PHONY: _default install
