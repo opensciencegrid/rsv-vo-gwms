@@ -1,8 +1,0 @@
-/var/log/rsv/metrics/*org.osg.local-gfactory-querying-local.log {
-  weekly
-  rotate 2
-  compress
-  compressoptions -9f
-  copytruncate
-  missingok
-}

@@ -1,0 +1,51 @@
+#!/usr/bin/python
+
+import os
+import re
+import subprocess
+import sys
+import urllib2
+import rsvprobe
+import re
+import ConfigParser
+
+sys.path.insert(0, '.')
+
+
+class DummyProbe(rsvprobe.RSVProbe):
+    """
+    This master probe querys condor collector at a gfactory and parses it to obtain the urls
+    of several CE nodes that accept jobs from the wanted VO
+    """
+
+    def __init__(self):
+        rsvprobe.RSVProbe.__init__(self)
+        self.metric = ""
+        self.short_metric = ""
+        metric = rsvprobe.RSVMetric("Dummy-Probe",
+                 "org.osg.general.dummy-probe", rsvprobe.RSVMetric.STATUS)
+        self.supported_metrics = [metric]
+        self.details = "---\n"
+
+    def parseopt(self):
+        """parse options specific to the gfactory probe
+        """
+        options, optlist, remainder = rsvprobe.RSVProbe.parseopt(self)
+        for opt, arg in options:
+            if self.host == self.localhost:
+                self.is_local = True
+            else:
+                self.is_local = False
+        return options, optlist, remainder
+
+    def run(self):
+        """Main routine for the probe"""
+        self.parseopt()
+        self.return_ok("Everything OK")
+
+def main():
+    probe = DummyProbe()
+    return probe.run()
+
+if __name__ == '__main__':
+    sys.exit(main())
