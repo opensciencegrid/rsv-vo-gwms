@@ -1,4 +1,4 @@
-#RSV-vo-gwms
+#rsv-vo-gwms
 
 Architecure
 ===========
@@ -11,10 +11,10 @@ Requirements
 1. An X509 certificate with the VOMS extension of the Virtual Organization (VO).
 1. A RedHat running machine where rsv-gwms-tester can be installed as root
 
-Briend Installation
+Brief Installation
 ===================
 
-1. Install the rsv-vo-gwms RPM
+1. Install the rsv-vo-gwms RPM. `yum install rsv-vo-gwms`
 1. Disable gratia in /etc/osg/config.d/30-rsv.ini
 1. Enable the gfactory vo query
 rsv-control --enable org.osg.local-gfactory-querying-local --host myhost
