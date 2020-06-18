@@ -1,14 +1,24 @@
-Usage
-1. Install the rsv-vo-gwms RPM
-2. Disable gratia in /etc/osg/config.d/30-rsv.ini
-3. Enable the gfactory vo query
-rsv-control --enable org.osg.local-gfactory-querying-local --host myhost
-4. Modify /etc/rsv/rsv.conf
+#rsv-vo-gwms
+
+> :warning: **This package is no longer supported or packaged by OSG**
+
+Architecure
+===========
+rsv-vo-gwms architecture is identical to the one of [rvs-gwms-tester](https://github.com/opensciencegrid/rsv-gwms-tester).
+Except it submits Condor-C jobs instead of Condor Vanilla jobs. In this regard it acts as a [GlideinWMS Factory](https://glideinwms.fnal.gov/doc.prd/factory/index.html). This way it does not need a GlideinWMS Frontend to work as rsv-vo-gwms does.
+
+Requirements
+============
+
+1. An X509 certificate with the VOMS extension of the Virtual Organization (VO).
+1. A RedHat running machine where rsv-gwms-tester can be installed as root
+
+Brief Installation
+===================
+
+1. Install the rsv-vo-gwms RPM. `yum install rsv-vo-gwms`
+1. Disable gratia in /etc/osg/config.d/30-rsv.ini
+1. Enable the gfactory vo query
+rsv-control --enable org.osg.local-gfactory-querying-local --host localhost
+1. Modify /etc/rsv/rsv.conf
 And update proxy-file entry to your VO proxy.
-
-
-Where myhost is the host where rsv-vo-gwms is installed
-
-More specific instructions are here:
-
-https://twiki.grid.iu.edu/bin/view/Sandbox/InstallRSV-vo-gwms
