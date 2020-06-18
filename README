@@ -1,5 +1,8 @@
 #rsv-vo-gwms
 
+!!!Warning
+   This package is not longer supported neither packaged by OSG anymore.
+
 Architecure
 ===========
 rsv-vo-gwms architecture is identical to the one of [rvs-gwms-tester](https://github.com/opensciencegrid/rsv-gwms-tester).
