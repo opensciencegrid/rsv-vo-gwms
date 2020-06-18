@@ -17,9 +17,6 @@ Brief Installation
 1. Install the rsv-vo-gwms RPM. `yum install rsv-vo-gwms`
 1. Disable gratia in /etc/osg/config.d/30-rsv.ini
 1. Enable the gfactory vo query
-rsv-control --enable org.osg.local-gfactory-querying-local --host myhost
+rsv-control --enable org.osg.local-gfactory-querying-local --host localhost
 1. Modify /etc/rsv/rsv.conf
 And update proxy-file entry to your VO proxy.
-
-
-Where myhost is the host where rsv-vo-gwms is installed.
